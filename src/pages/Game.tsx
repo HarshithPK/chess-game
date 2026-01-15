@@ -11,6 +11,7 @@ import PromotionModal from '../components/PromotionModal';
 import MoveHistoryPanel from '../components/MoveHistoryPanel';
 import EvalBar from '../components/EvalBar';
 import ResignButton from '../components/ResignButton';
+import DisconnectBanner from '../components/DisconnectBanner';
 
 function Game() {
     const dispatch = useAppDispatch();
@@ -65,6 +66,8 @@ function Game() {
             <h2 className="text-lg">
                 Turn: <span className="text-vs-accent">{turn === 'white' ? 'White' : 'Black'}</span>
             </h2>
+
+            <DisconnectBanner />
 
             <div className="flex items-center gap-6">
                 <div className="flex items-center gap-4">

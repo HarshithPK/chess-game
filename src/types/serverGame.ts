@@ -19,6 +19,11 @@ export interface ServerGame {
     };
 
     enPassantTarget: number | null;
+
     winner: PlayerColor;
+
     endReason: GameEndReason;
+
+    disconnectedColor?: PlayerColor;
+    disconnectedDeadline?: number;
 }

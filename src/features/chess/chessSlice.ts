@@ -3,7 +3,7 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { BoardState, GameEndReason } from '../../types/chess';
 import { initialBoard } from './initialBoard';
 import { getLegalMoves, isKingInCheck, hasAnyLegalMoves, type Move } from './moveUtils';
-import type { ServerGame } from '../../types/serverGame';
+import type { PlayerColor, ServerGame } from '../../types/serverGame';
 import { socket } from '../../socket';
 
 /* =====================================================
@@ -66,6 +66,9 @@ interface ChessState {
     moveHistory: MoveHistoryItem[];
     engineEval: EngineEval | null;
     lastEvalBeforeMove: number | null;
+
+    disconnectedDeadline: number | null;
+    disconnectedColor: PlayerColor | null;
 }
 
 /* ================== INITIAL STATE ================== */
@@ -75,20 +78,28 @@ const initialState: ChessState = {
     turn: 'white',
     legalMoves: [],
     selectedIndex: null,
+
     gameId: null,
     myColor: null,
     promotion: null,
     inCheck: false,
+
     gameOver: false,
     winner: null,
     endReason: null,
+
     enPassantTarget: null,
+
     lastMoveFrom: null,
     lastMoveTo: null,
+
     isFlipped: false,
     moveHistory: [],
     engineEval: null,
     lastEvalBeforeMove: null,
+
+    disconnectedDeadline: null,
+    disconnectedColor: null,
 };
 
 /* ================== SLICE ================== */
@@ -293,6 +304,9 @@ const chessSlice = createSlice({
             state.gameOver = action.payload.status === 'ended';
             state.winner = action.payload.winner ?? null;
             state.endReason = action.payload.endReason ?? null;
+
+            state.disconnectedDeadline = action.payload.disconnectedDeadline ?? null;
+            state.disconnectedColor = action.payload.disconnectedColor ?? null;
 
             // Determine user color
             if (action.payload.players.white?.socketId === socket.id) {
