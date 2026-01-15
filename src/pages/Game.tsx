@@ -56,6 +56,7 @@ function Game() {
         return () => {
             socket.off('game:update');
             socket.off('game:joined');
+            socket.off('game:reconnected');
         };
     }, [dispatch]);
 
