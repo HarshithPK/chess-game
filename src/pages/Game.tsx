@@ -1,14 +1,16 @@
 import { useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 
-import { toggleBoard } from '../features/chess/chessSlice';
+import { setGameFromServer, toggleBoard } from '../features/chess/chessSlice';
 import { stockfishEngine } from '../engine/stockfish';
 import { boardToFEN, getCastlingRights } from '../engine/fen';
+import { socket } from '../socket';
 
 import Board from '../components/Board';
 import PromotionModal from '../components/PromotionModal';
 import MoveHistoryPanel from '../components/MoveHistoryPanel';
 import EvalBar from '../components/EvalBar';
+import ResignButton from '../components/ResignButton';
 
 function Game() {
     const dispatch = useAppDispatch();
@@ -18,24 +20,18 @@ function Game() {
     const isFlipped = useAppSelector((s) => s.chess.isFlipped);
     const enPassantTarget = useAppSelector((s) => s.chess.enPassantTarget);
 
-    /* ===============================
-       ENGINE INIT (ONCE)
-    =============================== */
+    /* =========== ENGINE INIT (ONCE) =========== */
     useEffect(() => {
         stockfishEngine.init(dispatch);
     }, [dispatch]);
 
-    /* ===============================
-       AUTO BOARD FLIP
-    =============================== */
+    /* =========== AUTO BOARD FLIP =========== */
     useEffect(() => {
         if (turn === 'black' && !isFlipped) dispatch(toggleBoard());
         if (turn === 'white' && isFlipped) dispatch(toggleBoard());
     }, [turn, isFlipped, dispatch]);
 
-    /* ===============================
-       ENGINE EVALUATION
-    =============================== */
+    /* =========== ENGINE EVALUATION =========== */
     useEffect(() => {
         const castling = getCastlingRights(board);
         const fen = boardToFEN(board, turn, enPassantTarget, castling);
@@ -44,6 +40,25 @@ function Game() {
         stockfishEngine.evaluatePosition(fen);
     }, [board, turn, enPassantTarget]);
 
+    useEffect(() => {
+        socket.on('game:update', (game) => {
+            dispatch(setGameFromServer(game));
+        });
+
+        socket.on('game:joined', (game) => {
+            dispatch(setGameFromServer(game));
+        });
+
+        socket.on('game:reconnected', (game) => {
+            dispatch(setGameFromServer(game));
+        });
+
+        return () => {
+            socket.off('game:update');
+            socket.off('game:joined');
+        };
+    }, [dispatch]);
+
     return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-6">
             <h2 className="text-lg">
@@ -51,7 +66,10 @@ function Game() {
             </h2>
 
             <div className="flex items-center gap-6">
-                <EvalBar />
+                <div className="flex items-center gap-4">
+                    <EvalBar />
+                    <ResignButton />
+                </div>
 
                 <div className="relative rounded-2xl bg-linear-to-br from-blue-500/30 via-cyan-400/10 to-indigo-500/30 p-0.5 shadow-[0_0_40px_rgba(59,130,246,0.25)]">
                     <div className="bg-vs-card rounded-2xl p-6">

@@ -3,11 +3,17 @@ import { resetGame } from '../features/chess/chessSlice';
 
 function GameOverBanner() {
     const dispatch = useAppDispatch();
-    const { gameOver, winner } = useAppSelector((s) => s.chess);
+    const { gameOver, winner, endReason } = useAppSelector((s) => s.chess);
 
     if (!gameOver || !winner) return null;
 
     const winnerText = winner === 'white' ? 'White' : 'Black';
+    const title =
+        endReason === 'resign'
+            ? 'Resignation'
+            : endReason === 'disconnect'
+              ? 'Opponent disconnected'
+              : 'Checkmate';
 
     return (
         <>
@@ -18,7 +24,7 @@ function GameOverBanner() {
             <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
                 <div className="animate-scale-in pointer-events-auto w-62.5 rounded-2xl bg-linear-to-br from-slate-900 to-slate-800 px-10 py-7 text-center shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
                     {/* Title */}
-                    <h2 className="text-3xl font-semibold tracking-tight text-white">Checkmate</h2>
+                    <h2 className="text-3xl font-semibold tracking-tight text-white">{title}</h2>
 
                     {/* Subtitle */}
                     <p className="mt-2 text-lg font-semibold text-slate-300">{winnerText} wins</p>

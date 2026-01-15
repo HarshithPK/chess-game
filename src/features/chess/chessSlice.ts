@@ -1,7 +1,10 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { BoardState } from '../../types/chess';
+
+import type { BoardState, GameEndReason } from '../../types/chess';
 import { initialBoard } from './initialBoard';
 import { getLegalMoves, isKingInCheck, hasAnyLegalMoves, type Move } from './moveUtils';
+import type { ServerGame } from '../../types/serverGame';
+import { socket } from '../../socket';
 
 /* =====================================================
    HELPERS
@@ -33,7 +36,6 @@ interface MoveHistoryItem {
 
 interface PromotionState {
     index: number;
-    color: 'white' | 'black';
 }
 
 interface ChessState {
@@ -41,10 +43,15 @@ interface ChessState {
     turn: 'white' | 'black';
     legalMoves: Move[];
     selectedIndex: number | null;
+
+    gameId: string | null;
+    myColor: 'white' | 'black' | null;
+
     promotion: PromotionState | null;
     inCheck: boolean;
     gameOver: boolean;
     winner: 'white' | 'black' | null;
+    endReason: GameEndReason;
 
     enPassantTarget: number | null;
 
@@ -61,19 +68,20 @@ interface ChessState {
     lastEvalBeforeMove: number | null;
 }
 
-/* =====================================================
-   INITIAL STATE
-===================================================== */
+/* ================== INITIAL STATE ================== */
 
 const initialState: ChessState = {
     board: initialBoard,
     turn: 'white',
     legalMoves: [],
     selectedIndex: null,
+    gameId: null,
+    myColor: null,
     promotion: null,
     inCheck: false,
     gameOver: false,
     winner: null,
+    endReason: null,
     enPassantTarget: null,
     lastMoveFrom: null,
     lastMoveTo: null,
@@ -83,9 +91,7 @@ const initialState: ChessState = {
     lastEvalBeforeMove: null,
 };
 
-/* =====================================================
-   SLICE
-===================================================== */
+/* ================== SLICE ================== */
 
 const chessSlice = createSlice({
     name: 'chess',
@@ -164,34 +170,6 @@ const chessSlice = createSlice({
             state.enPassantTarget =
                 movingPiece.type === 'pawn' && Math.abs(from - to) === 16 ? (from + to) / 2 : null;
 
-            const row = Math.floor(to / 8);
-
-            /* ----- PROMOTION ----- */
-            if (
-                movingPiece.type === 'pawn' &&
-                ((movingPiece.color === 'white' && row === 0) ||
-                    (movingPiece.color === 'black' && row === 7))
-            ) {
-                state.lastMoveFrom = from;
-                state.lastMoveTo = to;
-
-                state.inCheck = isKingInCheck(state.board, opponent);
-
-                state.promotion = {
-                    index: to,
-                    color: movingPiece.color,
-                };
-
-                state.moveHistory.push({
-                    notation,
-                    annotation: null,
-                });
-
-                state.selectedIndex = null;
-                state.legalMoves = [];
-                return;
-            }
-
             /* ----- TURN SWITCH ----- */
             state.turn = opponent;
 
@@ -217,44 +195,7 @@ const chessSlice = createSlice({
             state.legalMoves = [];
         },
 
-        /* ---------- PROMOTION ---------- */
-
-        promotePawn: (state, action: PayloadAction<'queen' | 'rook' | 'bishop' | 'knight'>) => {
-            if (!state.promotion) return;
-
-            const { index, color } = state.promotion;
-            const opponent = color === 'white' ? 'black' : 'white';
-
-            state.board[index].piece = {
-                type: action.payload,
-                color,
-                hasMoved: true,
-            };
-
-            state.enPassantTarget = null;
-
-            state.inCheck = isKingInCheck(state.board, opponent);
-
-            if (state.inCheck && !hasAnyLegalMoves(state.board, opponent)) {
-                state.gameOver = true;
-                state.winner = color;
-            }
-
-            // finalize promotion notation
-            const last = state.moveHistory.length - 1;
-            if (last >= 0) {
-                state.moveHistory[last].notation += ` = ${action.payload.toUpperCase()}`;
-            }
-
-            state.lastMoveTo = index;
-            state.promotion = null;
-            state.turn = opponent;
-            state.selectedIndex = null;
-            state.legalMoves = [];
-        },
-
         /* ---------- UI / ANALYSIS ---------- */
-
         toggleBoard: (state) => {
             state.isFlipped = !state.isFlipped;
         },
@@ -267,6 +208,14 @@ const chessSlice = createSlice({
             if (move) {
                 move.annotation = action.payload.annotation;
             }
+        },
+
+        setPromotion: (state, action: PayloadAction<{ index: number }>) => {
+            state.promotion = { index: action.payload.index };
+        },
+
+        clearPromotion: (state) => {
+            state.promotion = null;
         },
 
         /* ---------- ENGINE ---------- */
@@ -317,17 +266,45 @@ const chessSlice = createSlice({
             state.turn = 'white';
             state.legalMoves = [];
             state.selectedIndex = null;
+
             state.promotion = null;
             state.inCheck = false;
             state.gameOver = false;
             state.winner = null;
+            state.endReason = null;
+
             state.enPassantTarget = null;
+
             state.lastMoveFrom = null;
             state.lastMoveTo = null;
+
             state.isFlipped = false;
+
             state.moveHistory = [];
             state.engineEval = null;
             state.lastEvalBeforeMove = null;
+        },
+
+        setGameFromServer: (state, action: PayloadAction<ServerGame>) => {
+            state.gameId = action.payload.id;
+            state.board = action.payload.board;
+            state.turn = action.payload.turn;
+            state.enPassantTarget = action.payload.enPassantTarget;
+            state.gameOver = action.payload.status === 'ended';
+            state.winner = action.payload.winner ?? null;
+            state.endReason = action.payload.endReason ?? null;
+
+            // Determine user color
+            if (action.payload.players.white?.socketId === socket.id) {
+                state.myColor = 'white';
+            } else if (action.payload.players.black?.socketId === socket.id) {
+                state.myColor = 'black';
+            } else {
+                state.myColor = null;
+            }
+
+            state.selectedIndex = null;
+            state.legalMoves = [];
         },
     },
 });
@@ -340,11 +317,13 @@ export const {
     movePiece,
     selectPiece,
     clearSelection,
-    promotePawn,
+    setPromotion,
+    clearPromotion,
     toggleBoard,
     setMoveAnnotation,
     setEngineEval,
     resetGame,
+    setGameFromServer,
 } = chessSlice.actions;
 
 export default chessSlice.reducer;
