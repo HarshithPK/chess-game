@@ -15,7 +15,6 @@ class StockfishEngine {
 
         this.worker.onmessage = (e) => {
             const msg = String(e.data);
-            console.log('[SF]', msg);
             this.handleMessage(msg);
         };
 

@@ -1,36 +1,47 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react';
 import { useAppSelector } from '../app/hooks';
 
-export default function DisconnectBanner() {
-    const { disconnectedDeadline, disconnectedColor, myColor, gameOver } = useAppSelector(
-        (s) => s.chess
-    );
+function formatSeconds(ms: number) {
+    return Math.max(0, Math.ceil(ms / 1000));
+}
 
-    const [secondsLeft, setSecondsLeft] = useState(0);
+export default function DisconnectBanner() {
+    const { disconnectedColor, disconnectedDeadline, gameOver } = useAppSelector((s) => s.chess);
+
+    const [remaining, setRemaining] = useState<number | null>(null);
 
     useEffect(() => {
-        if (!disconnectedDeadline) return;
+        if (!disconnectedDeadline) {
+            setRemaining(null);
+            return;
+        }
 
-        const tick = () => {
-            const remaining = Math.max(0, Math.ceil((disconnectedDeadline - Date.now()) / 1000));
-            setSecondsLeft(remaining);
+        const update = () => {
+            const diff = disconnectedDeadline - Date.now();
+            setRemaining(formatSeconds(diff));
         };
 
-        tick();
-        const id = setInterval(tick, 1000);
-        return () => clearInterval(id);
+        update();
+        const interval = setInterval(update, 1000);
+
+        return () => clearInterval(interval);
     }, [disconnectedDeadline]);
 
-    if (!disconnectedDeadline || gameOver) return null;
-
-    const isOpponentDisconnected = disconnectedColor !== myColor;
+    // Nothing to show
+    if (!disconnectedColor || !disconnectedDeadline || gameOver) return null;
 
     return (
-        <div className="absolute inset-0 top-4 left-1/2 z-40 -translate-x-1/2 rounded-xl bg-amber-500/90 px-6 py-3 text-center shadow-xl">
-            <p className="text-sm font-semibold text-black">
-                {isOpponentDisconnected ? 'Opponent disconnected' : 'You are disconnected'}
-            </p>
-            <p className="text-xs text-black/80">Game will end in {secondsLeft}s</p>
+        <div className="relative z-40 mb-2 w-full max-w-120 rounded-xl border border-red-500/30 bg-red-900/30 px-4 py-3 shadow-lg backdrop-blur">
+            <div className="flex items-center justify-between text-sm">
+                <span className="font-semibold text-red-200">
+                    {disconnectedColor === 'white' ? 'White' : 'Black'} disconnected
+                </span>
+
+                <span className="font-mono text-red-300">
+                    {remaining !== null ? `${remaining}s to forfeit` : ''}
+                </span>
+            </div>
         </div>
     );
 }

@@ -34,9 +34,22 @@ export default function Piece({ piece, index, disabled = false }: PieceProps) {
 
     const Icon = ICONS[piece.type];
 
-    const { myColor, turn, gameOver, promotion, isFlipped } = useAppSelector((s) => s.chess);
-    const canDrag =
-        !disabled && !gameOver && !promotion && piece.color === myColor && turn === myColor;
+    const { myColor, turn, gameOver, promotion, disconnectedColor } = useAppSelector(
+        (s) => s.chess
+    );
+
+    // 🔒 Central interaction lock
+    const isLocked =
+        gameOver ||
+        promotion !== null ||
+        disconnectedColor !== null ||
+        piece.color !== myColor ||
+        turn !== myColor;
+
+    const canDrag = !disabled && !isLocked;
+
+    // 🔁 Board orientation derived from player color
+    const isFlipped = myColor === 'black';
 
     useEffect(() => {
         if (!ref.current || !canDrag) return;
@@ -64,11 +77,9 @@ export default function Piece({ piece, index, disabled = false }: PieceProps) {
     return (
         <div
             ref={ref}
-            className={`transition-transform duration-300 ease-out ${isFlipped ? 'rotate-180' : ''} ${
-                canDrag
-                    ? 'cursor-grab hover:scale-110 hover:drop-shadow-[0_6px_10px_rgba(0,0,0,0.4)] active:cursor-grabbing'
-                    : 'cursor-not-allowed opacity-40'
-            } `}
+            className={`transition-transform duration-500 ${isFlipped ? 'rotate-180' : ''} ${
+                canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed opacity-40'
+            }`}
         >
             <Icon
                 className={`h-10 w-10 ${

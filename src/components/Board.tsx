@@ -8,7 +8,10 @@ const RANKS = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
 function Board() {
     const board = useAppSelector((state) => state.chess.board);
-    const isFlipped = useAppSelector((s) => s.chess.isFlipped);
+    const myColor = useAppSelector((s) => s.chess.myColor);
+
+    // 🔁 Deterministic orientation
+    const isFlipped = myColor === 'black';
 
     const files = isFlipped ? [...FILES].reverse() : FILES;
     const ranks = isFlipped ? RANKS : [...RANKS].reverse();
@@ -19,7 +22,7 @@ function Board() {
 
             {/* Board container */}
             <div
-                className={`border-vs-border transform-style-preserve-3d aspect-square w-[min(90vw,480px)] overflow-hidden rounded-lg border transition-transform duration-1700 ease-in-out ${
+                className={`border-vs-border transform-style-preserve-3d aspect-square w-[min(90vw,480px)] overflow-hidden rounded-lg border transition-transform duration-700 ease-in-out ${
                     isFlipped ? 'rotate-180' : ''
                 }`}
             >
