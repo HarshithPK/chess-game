@@ -5,6 +5,7 @@ export type PlayerColor = 'white' | 'black';
 export interface Player {
     socketId: string;
     color: PlayerColor;
+    playerId: string;
 }
 
 export interface ServerGame {
@@ -12,16 +13,14 @@ export interface ServerGame {
     status: 'waiting' | 'active' | 'ended';
     board: BoardState;
     turn: PlayerColor;
+    enPassantTarget: number | null;
 
     players: {
         white?: Player;
         black?: Player;
     };
 
-    enPassantTarget: number | null;
-
     winner: PlayerColor;
-
     endReason: GameEndReason;
 
     disconnectedColor?: PlayerColor;

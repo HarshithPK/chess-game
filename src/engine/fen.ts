@@ -70,7 +70,5 @@ export function boardToFEN(
 
     fen += ` ${turn === 'white' ? 'w' : 'b'} ${castling} ${ep} 0 1`;
 
-    console.log('Fen: ', fen);
-
     return fen;
 }

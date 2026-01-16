@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect } from 'react';
-import { useAppDispatch, useAppSelector } from '../app/hooks';
+import { useParams } from 'react-router-dom';
 
-import { setGameFromServer, toggleBoard } from '../features/chess/chessSlice';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
+import { setGameFromServer } from '../features/chess/chessSlice';
+
 import { stockfishEngine } from '../engine/stockfish';
 import { boardToFEN, getCastlingRights } from '../engine/fen';
 import { socket } from '../socket';
@@ -15,64 +18,66 @@ import DisconnectBanner from '../components/DisconnectBanner';
 
 function Game() {
     const dispatch = useAppDispatch();
+    const { gameId } = useParams<{ gameId: string }>();
 
     const board = useAppSelector((s) => s.chess.board);
     const turn = useAppSelector((s) => s.chess.turn);
-    const isFlipped = useAppSelector((s) => s.chess.isFlipped);
     const enPassantTarget = useAppSelector((s) => s.chess.enPassantTarget);
+    const myColor = useAppSelector((s) => s.chess.myColor);
 
-    /* =========== ENGINE INIT (ONCE) =========== */
+    /* ================= ENGINE INIT ================= */
     useEffect(() => {
         stockfishEngine.init(dispatch);
     }, [dispatch]);
 
-    /* =========== AUTO BOARD FLIP =========== */
+    /* ================= ENGINE EVAL ================= */
     useEffect(() => {
-        if (turn === 'black' && !isFlipped) dispatch(toggleBoard());
-        if (turn === 'white' && isFlipped) dispatch(toggleBoard());
-    }, [turn, isFlipped, dispatch]);
+        if (!board.length) return;
 
-    /* =========== ENGINE EVALUATION =========== */
-    useEffect(() => {
         const castling = getCastlingRights(board);
         const fen = boardToFEN(board, turn, enPassantTarget, castling);
-
-        console.log('[FEN]', fen); // keep for now
         stockfishEngine.evaluatePosition(fen);
     }, [board, turn, enPassantTarget]);
 
+    /* ================= SOCKET SYNC ================= */
     useEffect(() => {
-        socket.on('game:update', (game) => {
-            dispatch(setGameFromServer(game));
-        });
+        if (!gameId) return;
 
-        socket.on('game:joined', (game) => {
+        const handleGame = (game: any) => {
+            console.log('[SOCKET EVENT RECEIVED]', game);
             dispatch(setGameFromServer(game));
-        });
+        };
 
-        socket.on('game:reconnected', (game) => {
-            dispatch(setGameFromServer(game));
-        });
+        socket.on('game:state', handleGame);
+        socket.on('game:update', handleGame);
+
+        socket.emit('game:state', gameId);
 
         return () => {
-            socket.off('game:update');
-            socket.off('game:joined');
-            socket.off('game:reconnected');
+            socket.off('game:state', handleGame);
+            socket.off('game:update', handleGame);
         };
-    }, [dispatch]);
+    }, [dispatch, gameId]);
 
     return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-6">
-            <h2 className="text-lg">
-                Turn: <span className="text-vs-accent">{turn === 'white' ? 'White' : 'Black'}</span>
-            </h2>
+            {myColor === null ? (
+                <span className="rounded bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+                    Spectating
+                </span>
+            ) : (
+                <h2 className="text-lg">
+                    You are playing <span className="text-vs-accent capitalize">{myColor}</span> —
+                    Turn: <span className="text-vs-accent capitalize">{turn}</span>
+                </h2>
+            )}
 
             <DisconnectBanner />
 
             <div className="flex items-center gap-6">
                 <div className="flex items-center gap-4">
                     <EvalBar />
-                    <ResignButton />
+                    {myColor && <ResignButton />}
                 </div>
 
                 <div className="relative rounded-2xl bg-linear-to-br from-blue-500/30 via-cyan-400/10 to-indigo-500/30 p-0.5 shadow-[0_0_40px_rgba(59,130,246,0.25)]">

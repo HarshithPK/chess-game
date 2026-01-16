@@ -1,5 +1,4 @@
 import { io } from 'socket.io-client';
-
 import { store } from '../app/store';
 import { setPromotion } from '../features/chess/chessSlice';
 
@@ -14,17 +13,13 @@ function getPlayerId() {
     return id;
 }
 
-export const socket = io(import.meta.env.VITE_API_URL, {
+export const socket = io(import.meta.env.VITE_BACKEND_URL, {
     autoConnect: true,
     auth: {
         playerId: getPlayerId(),
     },
 });
 
-socket.on(`game:promotionRequired`, ({ index }) => {
-    store.dispatch(
-        setPromotion({
-            index,
-        })
-    );
+socket.on('game:promotionRequired', ({ index }) => {
+    store.dispatch(setPromotion({ index }));
 });

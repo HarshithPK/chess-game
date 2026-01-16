@@ -4,5 +4,5 @@ import Game from '../pages/Game';
 
 export const router = createBrowserRouter([
     { path: '/', element: <Home /> },
-    { path: '/play', element: <Game /> },
+    { path: '/play/:gameId', element: <Game /> },
 ]);
