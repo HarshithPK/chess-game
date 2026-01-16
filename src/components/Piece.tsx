@@ -38,21 +38,21 @@ export default function Piece({ piece, index, disabled = false }: PieceProps) {
         (s) => s.chess
     );
 
-    // 🔒 Central interaction lock
-    const isLocked =
-        gameOver ||
-        promotion !== null ||
-        disconnectedColor !== null ||
-        piece.color !== myColor ||
-        turn !== myColor;
-
-    const canDrag = !disabled && !isLocked;
+    /** ✅ SINGLE SOURCE OF TRUTH */
+    const canInteract =
+        myColor !== null &&
+        !gameOver &&
+        promotion === null &&
+        disconnectedColor === null &&
+        piece.color === myColor &&
+        turn === myColor &&
+        !disabled;
 
     // 🔁 Board orientation derived from player color
     const isFlipped = myColor === 'black';
 
     useEffect(() => {
-        if (!ref.current || !canDrag) return;
+        if (!ref.current || !canInteract) return;
 
         return draggable({
             element: ref.current,
@@ -72,13 +72,15 @@ export default function Piece({ piece, index, disabled = false }: PieceProps) {
                 fromIndex: index,
             }),
         });
-    }, [canDrag, index, dispatch]);
+    }, [canInteract, index, dispatch]);
 
     return (
         <div
             ref={ref}
             className={`transition-transform duration-500 ${isFlipped ? 'rotate-180' : ''} ${
-                canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed opacity-40'
+                canInteract
+                    ? 'cursor-grab active:cursor-grabbing'
+                    : 'pointer-events-none opacity-40'
             }`}
         >
             <Icon
