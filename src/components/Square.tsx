@@ -3,9 +3,9 @@ import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { clearSelection, selectPiece } from '../features/chess/chessSlice';
-import { socket } from '../socket';
 
 import Piece from './Piece';
+import { socket } from '../socket';
 
 interface SquareProps {
     index: number;
@@ -26,24 +26,36 @@ function Square({ index }: SquareProps) {
         promotion,
         disconnectedColor,
         inCheck,
+        gameStatus,
     } = useAppSelector((s) => s.chess);
 
     const square = board[index];
-    const piece = square?.piece ?? null;
+    const piece = square.piece;
 
-    const legalMove = legalMoves.find((m) => m.index === index);
+    const isSpectator = myColor === null;
+
+    const isLocked =
+        gameStatus !== 'active' ||
+        isSpectator ||
+        gameOver ||
+        promotion !== null ||
+        disconnectedColor !== null ||
+        turn !== myColor ||
+        !gameId;
+
+    // 🔕 Spectators see no local state
+    const visibleLegalMoves = isSpectator ? [] : legalMoves;
+    const visibleSelectedIndex = isSpectator ? null : selectedIndex;
+
+    const legalMove = visibleLegalMoves.find((m) => m.index === index);
 
     const row = Math.floor(index / 8);
     const col = index % 8;
     const isDark = (row + col) % 2 === 1;
 
-    const isOrigin = selectedIndex === index;
+    const isOrigin = visibleSelectedIndex === index;
 
-    const isKingInCheck = piece?.type === 'king' && piece.color === turn && inCheck;
-
-    // 🔒 GLOBAL LOCK
-    const isLocked =
-        !gameId || gameOver || promotion !== null || disconnectedColor !== null || turn !== myColor;
+    const isKingInCheck = !isSpectator && piece?.type === 'king' && piece.color === turn && inCheck;
 
     /* ================= DROP ================= */
 
@@ -52,11 +64,8 @@ function Square({ index }: SquareProps) {
 
         return dropTargetForElements({
             element: ref.current,
-
             onDrop: ({ source }) => {
                 const fromIndex = source.data.fromIndex as number;
-
-                if (fromIndex === index) return;
                 if (!legalMove) return;
 
                 socket.emit('game:move', {
@@ -72,12 +81,10 @@ function Square({ index }: SquareProps) {
 
     function handleClick() {
         if (isLocked) return;
-
         if (!piece) {
             dispatch(clearSelection());
             return;
         }
-
         if (piece.color !== myColor) return;
 
         dispatch(selectPiece(index));
@@ -87,27 +94,17 @@ function Square({ index }: SquareProps) {
         <div
             ref={ref}
             onClick={handleClick}
-            className={`flex aspect-square items-center justify-center transition-all duration-150 ${
-                isDark ? 'bg-[#1f2a3a]' : 'bg-[#2c3b52]'
-            } ${
-                isOrigin
-                    ? 'rounded-sm shadow-[inset_0_0_0_2px_rgb(59,130,246),0_0_10px_rgba(59,130,246,0.6)]'
-                    : ''
-            } ${
+            className={`flex aspect-square items-center justify-center transition-all duration-150 ${isDark ? 'bg-[#1f2a3a]' : 'bg-[#2c3b52]'} ${isOrigin ? 'shadow-[inset_0_0_0_2px_rgb(59,130,246)]' : ''} ${
                 legalMove
                     ? legalMove.capture
-                        ? 'rounded-sm shadow-[inset_0_0_0_2px_rgba(239,68,68,0.9),0_0_12px_rgba(239,68,68,0.7)]'
-                        : 'rounded-sm shadow-[inset_0_0_0_2px_rgba(16,185,129,0.9),0_0_12px_rgba(16,185,129,0.7)]'
+                        ? 'shadow-[inset_0_0_0_2px_rgba(239,68,68,0.9)]'
+                        : 'shadow-[inset_0_0_0_2px_rgba(16,185,129,0.9)]'
                     : ''
             } ${
-                isKingInCheck
-                    ? 'animate-pulse rounded-sm bg-red-500/20 shadow-[inset_0_0_0_3px_rgba(239,68,68,0.9),0_0_12px_rgba(239,68,68,0.7)]'
-                    : ''
-            }`}
+                isKingInCheck ? 'bg-red-500/20 shadow-[inset_0_0_0_3px_rgba(239,68,68,0.9)]' : ''
+            } ${isSpectator ? 'pointer-events-none' : 'cursor-pointer hover:scale-[1.02]'} `}
         >
-            {piece?.type && (
-                <Piece piece={piece} index={index} disabled={isLocked || piece.color !== myColor} />
-            )}
+            {piece && <Piece piece={piece} index={index} disabled={isLocked} />}
         </div>
     );
 }

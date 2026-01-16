@@ -1,6 +1,6 @@
 import { useAppSelector } from '../app/hooks';
-import Square from './Square';
 import GameOverBanner from './GameOverBanner';
+import Square from './Square';
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const RANKS = ['1', '2', '3', '4', '5', '6', '7', '8'];
@@ -9,13 +9,16 @@ function Board() {
     const board = useAppSelector((s) => s.chess.board);
     const myColor = useAppSelector((s) => s.chess.myColor);
 
+    const isSpectator = myColor === null;
     const isFlipped = myColor === 'black';
 
     const files = isFlipped ? [...FILES].reverse() : FILES;
     const ranks = isFlipped ? RANKS : [...RANKS].reverse();
 
     return (
-        <div className="relative">
+        <div
+            className={`relative ${isSpectator ? '' : 'transition-transform hover:scale-[1.008]'}`}
+        >
             <GameOverBanner />
 
             <div
@@ -30,7 +33,8 @@ function Board() {
                 </div>
             </div>
 
-            <div className="absolute right-0 -bottom-5 left-0 flex justify-between text-xs opacity-70">
+            {/* File labels */}
+            <div className="pointer-events-none absolute right-0 -bottom-5 left-0 flex justify-between px-1 text-xs opacity-70">
                 {files.map((f) => (
                     <span key={f} className="w-[12.5%] text-center">
                         {f}
@@ -38,9 +42,12 @@ function Board() {
                 ))}
             </div>
 
-            <div className="absolute top-0 bottom-0 -left-4 flex flex-col justify-between text-xs opacity-70">
+            {/* Rank labels */}
+            <div className="pointer-events-none absolute top-0 bottom-0 -left-4 flex flex-col justify-between py-1 text-xs opacity-70">
                 {ranks.map((r) => (
-                    <span key={r}>{r}</span>
+                    <span key={r} className="flex h-[12.5%] items-center">
+                        {r}
+                    </span>
                 ))}
             </div>
         </div>

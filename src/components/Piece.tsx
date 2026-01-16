@@ -28,17 +28,22 @@ interface PieceProps {
     disabled?: boolean;
 }
 
-function Piece({ piece, index, disabled = false }: PieceProps) {
+export default function Piece({ piece, index, disabled = false }: PieceProps) {
     const ref = useRef<HTMLDivElement | null>(null);
     const dispatch = useAppDispatch();
 
-    const { myColor, turn, gameOver, promotion, disconnectedColor } = useAppSelector(
+    const { myColor, turn, gameOver, promotion, disconnectedColor, gameStatus } = useAppSelector(
         (s) => s.chess
     );
 
-    /** ✅ SINGLE SOURCE OF TRUTH FOR INTERACTION */
+    const Icon = ICONS[piece.type];
+
+    /** ✅ SINGLE SOURCE OF TRUTH */
+    const isSpectator = myColor === null;
+
     const canInteract =
-        myColor !== null &&
+        gameStatus === 'active' &&
+        !isSpectator &&
         !gameOver &&
         promotion === null &&
         disconnectedColor === null &&
@@ -46,7 +51,6 @@ function Piece({ piece, index, disabled = false }: PieceProps) {
         turn === myColor &&
         !disabled;
 
-    // 🔁 Board orientation derived from player color
     const isFlipped = myColor === 'black';
 
     useEffect(() => {
@@ -54,37 +58,31 @@ function Piece({ piece, index, disabled = false }: PieceProps) {
 
         return draggable({
             element: ref.current,
-
             onDragStart: () => {
                 dispatch(clearSelection());
                 dispatch(selectPiece(index));
             },
-
             onDrag: ({ location }) => {
                 if (location.current.dropTargets.length === 0) {
                     dispatch(clearSelection());
                 }
             },
-
             getInitialData: () => ({
                 fromIndex: index,
             }),
         });
     }, [canInteract, index, dispatch]);
 
-    // 🛑 HARD GUARD — prevents all hydration crashes
-    if (!piece || !piece.type || !piece.color) {
-        return null;
-    }
-
-    const Icon = ICONS[piece.type];
+    if (!piece) return null;
 
     return (
         <div
             ref={ref}
-            className={`transition-transform duration-500 ${
-                isFlipped ? 'rotate-180' : ''
-            } ${canInteract ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none opacity-40'}`}
+            className={`transition-transform duration-500 ${isFlipped ? 'rotate-180' : ''} ${
+                canInteract
+                    ? 'cursor-grab active:cursor-grabbing'
+                    : 'pointer-events-none opacity-40'
+            }`}
         >
             <Icon
                 className={`h-10 w-10 ${
@@ -95,5 +93,3 @@ function Piece({ piece, index, disabled = false }: PieceProps) {
         </div>
     );
 }
-
-export default Piece;

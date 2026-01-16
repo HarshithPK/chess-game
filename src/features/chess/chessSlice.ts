@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-import type { BoardState, GameEndReason } from '../../types/chess';
+import type { BoardState, GameEndReason, GameStatus } from '../../types/chess';
 import { initialBoard } from './initialBoard';
 import { getLegalMoves, isKingInCheck, hasAnyLegalMoves, type Move } from './moveUtils';
 import type { PlayerColor, ServerGame } from '../../types/serverGame';
@@ -71,6 +71,8 @@ interface ChessState {
 
     disconnectedDeadline: number | null;
     disconnectedColor: PlayerColor | null;
+
+    gameStatus: GameStatus;
 }
 
 /* ================== INITIAL STATE ================== */
@@ -104,6 +106,8 @@ const initialState: ChessState = {
 
     disconnectedDeadline: null,
     disconnectedColor: null,
+
+    gameStatus: 'waiting',
 };
 
 /* ================== SLICE ================== */
@@ -297,6 +301,8 @@ const chessSlice = createSlice({
 
             state.disconnectedDeadline = action.payload.disconnectedDeadline ?? null;
             state.disconnectedColor = action.payload.disconnectedColor ?? null;
+
+            state.gameStatus = action.payload.status;
 
             const myPlayerId = getPlayerId();
 

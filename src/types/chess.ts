@@ -4,6 +4,8 @@ export type Color = 'white' | 'black';
 
 export type GameEndReason = 'checkmate' | 'resign' | 'disconnect' | null;
 
+export type GameStatus = 'waiting' | 'active' | 'ended';
+
 export interface Piece {
     type: PieceType;
     color: Color;

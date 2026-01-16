@@ -15,6 +15,7 @@ import MoveHistoryPanel from '../components/MoveHistoryPanel';
 import EvalBar from '../components/EvalBar';
 import ResignButton from '../components/ResignButton';
 import DisconnectBanner from '../components/DisconnectBanner';
+import WaitingOverlay from '../components/WaitingOverlay';
 
 export default function Game() {
     const dispatch = useAppDispatch();
@@ -48,14 +49,22 @@ export default function Game() {
             dispatch(setGameFromServer(game));
         };
 
-        socket.on('game:state', handleGame);
+        // 🔥 Unified game sync
+        socket.on('game:created', handleGame);
+        socket.on('game:joined', handleGame);
         socket.on('game:update', handleGame);
+        socket.on('game:reconnected', handleGame);
+        socket.on('game:spectating', handleGame);
 
-        socket.emit('game:state', gameId);
+        // 🔥 Single entry point
+        socket.emit('game:joinOrSpectate', gameId);
 
         return () => {
-            socket.off('game:state', handleGame);
+            socket.off('game:created', handleGame);
+            socket.off('game:joined', handleGame);
             socket.off('game:update', handleGame);
+            socket.off('game:reconnected', handleGame);
+            socket.off('game:spectating', handleGame);
         };
     }, [dispatch, gameId]);
 
@@ -71,8 +80,8 @@ export default function Game() {
                     <h2 className="text-lg font-medium">
                         You are playing <span className="text-vs-accent capitalize">{myColor}</span>{' '}
                         — Turn: <span className="text-vs-accent capitalize">{turn}</span>
-                    </h2>{' '}
-                    {myColor && <ResignButton />}
+                    </h2>
+                    <ResignButton />
                 </div>
             )}
 
@@ -88,6 +97,7 @@ export default function Game() {
                 {/* BOARD */}
                 <div className="relative">
                     <Board />
+                    <WaitingOverlay />
                     <PromotionModal />
                 </div>
 
