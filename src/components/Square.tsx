@@ -1,94 +1,115 @@
 import { useEffect, useRef } from 'react';
-import { draggable } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import {
-    ChessKing,
-    ChessQueen,
-    ChessBishop,
-    ChessKnight,
-    ChessRook,
-    ChessPawn,
-} from 'lucide-react';
+import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { selectPiece, clearSelection } from '../features/chess/chessSlice';
-import type { Piece as PieceType } from '../types/chess';
+import { clearSelection, selectPiece } from '../features/chess/chessSlice';
+import { socket } from '../socket';
 
-const ICONS = {
-    king: ChessKing,
-    queen: ChessQueen,
-    rook: ChessRook,
-    bishop: ChessBishop,
-    knight: ChessKnight,
-    pawn: ChessPawn,
-};
+import Piece from './Piece';
 
-interface PieceProps {
-    piece: PieceType;
+interface SquareProps {
     index: number;
-    disabled?: boolean;
 }
 
-export default function Piece({ piece, index, disabled = false }: PieceProps) {
+function Square({ index }: SquareProps) {
     const ref = useRef<HTMLDivElement | null>(null);
     const dispatch = useAppDispatch();
 
-    const Icon = ICONS[piece.type];
+    const {
+        board,
+        legalMoves,
+        selectedIndex,
+        turn,
+        myColor,
+        gameId,
+        gameOver,
+        promotion,
+        disconnectedColor,
+        inCheck,
+    } = useAppSelector((s) => s.chess);
 
-    const { myColor, turn, gameOver, promotion, disconnectedColor } = useAppSelector(
-        (s) => s.chess
-    );
+    const square = board[index];
+    const piece = square?.piece ?? null;
 
-    /** ✅ SINGLE SOURCE OF TRUTH */
-    const canInteract =
-        myColor !== null &&
-        !gameOver &&
-        promotion === null &&
-        disconnectedColor === null &&
-        piece.color === myColor &&
-        turn === myColor &&
-        !disabled;
+    const legalMove = legalMoves.find((m) => m.index === index);
 
-    // 🔁 Board orientation derived from player color
-    const isFlipped = myColor === 'black';
+    const row = Math.floor(index / 8);
+    const col = index % 8;
+    const isDark = (row + col) % 2 === 1;
+
+    const isOrigin = selectedIndex === index;
+
+    const isKingInCheck = piece?.type === 'king' && piece.color === turn && inCheck;
+
+    // 🔒 GLOBAL LOCK
+    const isLocked =
+        !gameId || gameOver || promotion !== null || disconnectedColor !== null || turn !== myColor;
+
+    /* ================= DROP ================= */
 
     useEffect(() => {
-        if (!ref.current || !canInteract) return;
+        if (!ref.current || isLocked) return;
 
-        return draggable({
+        return dropTargetForElements({
             element: ref.current,
 
-            onDragStart: () => {
-                dispatch(clearSelection());
-                dispatch(selectPiece(index));
-            },
+            onDrop: ({ source }) => {
+                const fromIndex = source.data.fromIndex as number;
 
-            onDrag: ({ location }) => {
-                if (location.current.dropTargets.length === 0) {
-                    dispatch(clearSelection());
-                }
-            },
+                if (fromIndex === index) return;
+                if (!legalMove) return;
 
-            getInitialData: () => ({
-                fromIndex: index,
-            }),
+                socket.emit('game:move', {
+                    gameId,
+                    from: fromIndex,
+                    to: index,
+                });
+            },
         });
-    }, [canInteract, index, dispatch]);
+    }, [index, legalMove, isLocked, gameId]);
+
+    /* ================= CLICK ================= */
+
+    function handleClick() {
+        if (isLocked) return;
+
+        if (!piece) {
+            dispatch(clearSelection());
+            return;
+        }
+
+        if (piece.color !== myColor) return;
+
+        dispatch(selectPiece(index));
+    }
 
     return (
         <div
             ref={ref}
-            className={`transition-transform duration-500 ${isFlipped ? 'rotate-180' : ''} ${
-                canInteract
-                    ? 'cursor-grab active:cursor-grabbing'
-                    : 'pointer-events-none opacity-40'
+            onClick={handleClick}
+            className={`flex aspect-square items-center justify-center transition-all duration-150 ${
+                isDark ? 'bg-[#1f2a3a]' : 'bg-[#2c3b52]'
+            } ${
+                isOrigin
+                    ? 'rounded-sm shadow-[inset_0_0_0_2px_rgb(59,130,246),0_0_10px_rgba(59,130,246,0.6)]'
+                    : ''
+            } ${
+                legalMove
+                    ? legalMove.capture
+                        ? 'rounded-sm shadow-[inset_0_0_0_2px_rgba(239,68,68,0.9),0_0_12px_rgba(239,68,68,0.7)]'
+                        : 'rounded-sm shadow-[inset_0_0_0_2px_rgba(16,185,129,0.9),0_0_12px_rgba(16,185,129,0.7)]'
+                    : ''
+            } ${
+                isKingInCheck
+                    ? 'animate-pulse rounded-sm bg-red-500/20 shadow-[inset_0_0_0_3px_rgba(239,68,68,0.9),0_0_12px_rgba(239,68,68,0.7)]'
+                    : ''
             }`}
         >
-            <Icon
-                className={`h-10 w-10 ${
-                    piece.color === 'white' ? 'text-slate-100' : 'text-slate-950'
-                }`}
-                strokeWidth={1.8}
-            />
+            {piece?.type && (
+                <Piece piece={piece} index={index} disabled={isLocked || piece.color !== myColor} />
+            )}
         </div>
     );
 }
+
+export default Square;

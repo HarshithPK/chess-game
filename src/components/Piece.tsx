@@ -28,17 +28,15 @@ interface PieceProps {
     disabled?: boolean;
 }
 
-export default function Piece({ piece, index, disabled = false }: PieceProps) {
+function Piece({ piece, index, disabled = false }: PieceProps) {
     const ref = useRef<HTMLDivElement | null>(null);
     const dispatch = useAppDispatch();
-
-    const Icon = ICONS[piece.type];
 
     const { myColor, turn, gameOver, promotion, disconnectedColor } = useAppSelector(
         (s) => s.chess
     );
 
-    /** ✅ SINGLE SOURCE OF TRUTH */
+    /** ✅ SINGLE SOURCE OF TRUTH FOR INTERACTION */
     const canInteract =
         myColor !== null &&
         !gameOver &&
@@ -74,14 +72,19 @@ export default function Piece({ piece, index, disabled = false }: PieceProps) {
         });
     }, [canInteract, index, dispatch]);
 
+    // 🛑 HARD GUARD — prevents all hydration crashes
+    if (!piece || !piece.type || !piece.color) {
+        return null;
+    }
+
+    const Icon = ICONS[piece.type];
+
     return (
         <div
             ref={ref}
-            className={`transition-transform duration-500 ${isFlipped ? 'rotate-180' : ''} ${
-                canInteract
-                    ? 'cursor-grab active:cursor-grabbing'
-                    : 'pointer-events-none opacity-40'
-            }`}
+            className={`transition-transform duration-500 ${
+                isFlipped ? 'rotate-180' : ''
+            } ${canInteract ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none opacity-40'}`}
         >
             <Icon
                 className={`h-10 w-10 ${
@@ -92,3 +95,5 @@ export default function Piece({ piece, index, disabled = false }: PieceProps) {
         </div>
     );
 }
+
+export default Piece;

@@ -16,7 +16,7 @@ import EvalBar from '../components/EvalBar';
 import ResignButton from '../components/ResignButton';
 import DisconnectBanner from '../components/DisconnectBanner';
 
-function Game() {
+export default function Game() {
     const dispatch = useAppDispatch();
     const { gameId } = useParams<{ gameId: string }>();
 
@@ -25,12 +25,12 @@ function Game() {
     const enPassantTarget = useAppSelector((s) => s.chess.enPassantTarget);
     const myColor = useAppSelector((s) => s.chess.myColor);
 
-    /* ================= ENGINE INIT ================= */
+    /* ================= ENGINE ================= */
+
     useEffect(() => {
         stockfishEngine.init(dispatch);
     }, [dispatch]);
 
-    /* ================= ENGINE EVAL ================= */
     useEffect(() => {
         if (!board.length) return;
 
@@ -39,12 +39,12 @@ function Game() {
         stockfishEngine.evaluatePosition(fen);
     }, [board, turn, enPassantTarget]);
 
-    /* ================= SOCKET SYNC ================= */
+    /* ================= SOCKET ================= */
+
     useEffect(() => {
         if (!gameId) return;
 
         const handleGame = (game: any) => {
-            console.log('[SOCKET EVENT RECEIVED]', game);
             dispatch(setGameFromServer(game));
         };
 
@@ -60,37 +60,40 @@ function Game() {
     }, [dispatch, gameId]);
 
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center gap-6">
+        <div className="flex min-h-screen flex-col items-center justify-start gap-6 px-4 py-6">
+            {/* ===== HEADER ===== */}
             {myColor === null ? (
-                <span className="rounded bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+                <span className="rounded bg-slate-700 px-3 py-1 text-xs text-slate-200">
                     Spectating
                 </span>
             ) : (
-                <h2 className="text-lg">
-                    You are playing <span className="text-vs-accent capitalize">{myColor}</span> —
-                    Turn: <span className="text-vs-accent capitalize">{turn}</span>
-                </h2>
+                <div className="flex w-full max-w-350 items-center justify-between gap-8">
+                    <h2 className="text-lg font-medium">
+                        You are playing <span className="text-vs-accent capitalize">{myColor}</span>{' '}
+                        — Turn: <span className="text-vs-accent capitalize">{turn}</span>
+                    </h2>{' '}
+                    {myColor && <ResignButton />}
+                </div>
             )}
 
             <DisconnectBanner />
 
-            <div className="flex items-center gap-6">
-                <div className="flex items-center gap-4">
+            {/* ===== MAIN LAYOUT ===== */}
+            <div className="flex w-full max-w-350 items-start justify-center gap-8">
+                {/* LEFT SIDEBAR */}
+                <div className="flex flex-col items-center gap-4">
                     <EvalBar />
-                    {myColor && <ResignButton />}
                 </div>
 
-                <div className="relative rounded-2xl bg-linear-to-br from-blue-500/30 via-cyan-400/10 to-indigo-500/30 p-0.5 shadow-[0_0_40px_rgba(59,130,246,0.25)]">
-                    <div className="bg-vs-card rounded-2xl p-6">
-                        <Board />
-                        <PromotionModal />
-                    </div>
+                {/* BOARD */}
+                <div className="relative">
+                    <Board />
+                    <PromotionModal />
                 </div>
 
+                {/* RIGHT SIDEBAR */}
                 <MoveHistoryPanel />
             </div>
         </div>
     );
 }
-
-export default Game;
