@@ -7,6 +7,7 @@ export type GameEndReason = 'checkmate' | 'resign' | 'disconnect' | null;
 export type GameStatus = 'waiting' | 'active' | 'ended';
 
 export interface Piece {
+    id: string;
     type: PieceType;
     color: Color;
     hasMoved?: boolean;

@@ -1,5 +1,6 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
@@ -16,8 +17,9 @@ import EvalBar from '../components/EvalBar';
 import ResignButton from '../components/ResignButton';
 import DisconnectBanner from '../components/DisconnectBanner';
 import WaitingOverlay from '../components/WaitingOverlay';
+import InviteLink from '../components/InviteLink';
 
-export default function Game() {
+function Game() {
     const dispatch = useAppDispatch();
     const { gameId } = useParams<{ gameId: string }>();
 
@@ -25,6 +27,7 @@ export default function Game() {
     const turn = useAppSelector((s) => s.chess.turn);
     const enPassantTarget = useAppSelector((s) => s.chess.enPassantTarget);
     const myColor = useAppSelector((s) => s.chess.myColor);
+    const gameStatus = useAppSelector((s) => s.chess.gameStatus);
 
     /* ================= ENGINE ================= */
 
@@ -49,14 +52,12 @@ export default function Game() {
             dispatch(setGameFromServer(game));
         };
 
-        // 🔥 Unified game sync
         socket.on('game:created', handleGame);
         socket.on('game:joined', handleGame);
         socket.on('game:update', handleGame);
         socket.on('game:reconnected', handleGame);
         socket.on('game:spectating', handleGame);
 
-        // 🔥 Single entry point
         socket.emit('game:joinOrSpectate', gameId);
 
         return () => {
@@ -67,6 +68,27 @@ export default function Game() {
             socket.off('game:spectating', handleGame);
         };
     }, [dispatch, gameId]);
+
+    /* ================= OPPONENT JOIN TOAST ================= */
+
+    const prevStatusRef = useRef(gameStatus);
+    const [showOpponentToast, setShowOpponentToast] = useState(false);
+
+    useEffect(() => {
+        if (prevStatusRef.current === 'waiting' && gameStatus === 'active') {
+            setShowOpponentToast(true);
+
+            const timer = setTimeout(() => {
+                setShowOpponentToast(false);
+            }, 2500);
+
+            return () => clearTimeout(timer);
+        }
+
+        prevStatusRef.current = gameStatus;
+    }, [gameStatus]);
+
+    /* ================= UI ================= */
 
     return (
         <div className="flex min-h-screen flex-col items-center justify-start gap-6 px-4 py-6">
@@ -85,7 +107,17 @@ export default function Game() {
                 </div>
             )}
 
+            {/* ===== INVITE LINK ===== */}
+            <InviteLink />
+
             <DisconnectBanner />
+
+            {/* ===== TOAST ===== */}
+            {showOpponentToast && (
+                <div className="animate-fade-in fixed top-4 z-50 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-lg">
+                    Opponent joined — game started ♟️
+                </div>
+            )}
 
             {/* ===== MAIN LAYOUT ===== */}
             <div className="flex w-full max-w-350 items-start justify-center gap-8">
@@ -97,7 +129,10 @@ export default function Game() {
                 {/* BOARD */}
                 <div className="relative">
                     <Board />
-                    <WaitingOverlay />
+
+                    {/* Waiting overlay disappears automatically */}
+                    {gameStatus === 'waiting' && <WaitingOverlay />}
+
                     <PromotionModal />
                 </div>
 
@@ -107,3 +142,5 @@ export default function Game() {
         </div>
     );
 }
+
+export default Game;

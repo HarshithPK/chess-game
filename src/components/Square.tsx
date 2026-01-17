@@ -34,6 +34,7 @@ function Square({ index }: SquareProps) {
 
     const isSpectator = myColor === null;
 
+    /** ✅ SINGLE SOURCE OF TRUTH */
     const isLocked =
         gameStatus !== 'active' ||
         isSpectator ||
@@ -43,7 +44,7 @@ function Square({ index }: SquareProps) {
         turn !== myColor ||
         !gameId;
 
-    // 🔕 Spectators see no local state
+    // Hide all local interaction state for spectators
     const visibleLegalMoves = isSpectator ? [] : legalMoves;
     const visibleSelectedIndex = isSpectator ? null : selectedIndex;
 
@@ -54,7 +55,6 @@ function Square({ index }: SquareProps) {
     const isDark = (row + col) % 2 === 1;
 
     const isOrigin = visibleSelectedIndex === index;
-
     const isKingInCheck = !isSpectator && piece?.type === 'king' && piece.color === turn && inCheck;
 
     /* ================= DROP ================= */
@@ -66,6 +66,8 @@ function Square({ index }: SquareProps) {
             element: ref.current,
             onDrop: ({ source }) => {
                 const fromIndex = source.data.fromIndex as number;
+
+                if (fromIndex === index) return;
                 if (!legalMove) return;
 
                 socket.emit('game:move', {
@@ -81,10 +83,12 @@ function Square({ index }: SquareProps) {
 
     function handleClick() {
         if (isLocked) return;
+
         if (!piece) {
             dispatch(clearSelection());
             return;
         }
+
         if (piece.color !== myColor) return;
 
         dispatch(selectPiece(index));
@@ -102,7 +106,7 @@ function Square({ index }: SquareProps) {
                     : ''
             } ${
                 isKingInCheck ? 'bg-red-500/20 shadow-[inset_0_0_0_3px_rgba(239,68,68,0.9)]' : ''
-            } ${isSpectator ? 'pointer-events-none' : 'cursor-pointer hover:scale-[1.02]'} `}
+            } ${isLocked ? 'cursor-default' : 'cursor-pointer hover:scale-[1.02]'} `}
         >
             {piece && <Piece piece={piece} index={index} disabled={isLocked} />}
         </div>
