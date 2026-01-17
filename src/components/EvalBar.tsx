@@ -4,9 +4,9 @@ function clamp(value: number, min: number, max: number) {
     return Math.max(min, Math.min(max, value));
 }
 
-export default function EvalBar() {
+function EvalBar() {
     const evalData = useAppSelector((s) => s.chess.engineEval);
-    const isFlipped = useAppSelector((s) => s.chess.isFlipped);
+    const myColor = useAppSelector((s) => s.chess.myColor);
 
     let percentage = 50;
     let label = '0.00';
@@ -16,7 +16,7 @@ export default function EvalBar() {
             // Clamp centipawns to avoid extreme jumps
             const cp = clamp(evalData.value, -1000, 1000);
 
-            // Convert cp → bar percentage
+            // Convert cp → bar percentage (white advantage)
             percentage = 50 + cp / 20;
             percentage = clamp(percentage, 0, 100);
 
@@ -28,17 +28,21 @@ export default function EvalBar() {
         }
     }
 
-    // Flip bar with board orientation
-    const whiteHeight = isFlipped ? 100 - percentage : percentage;
+    /**
+     * 🔁 Perspective flip
+     * - White player: white advantage grows upward
+     * - Black player: white advantage grows downward
+     */
+    const whiteHeight = myColor === 'black' ? 100 - percentage : percentage;
 
     return (
         <div className="relative h-130 w-12 overflow-hidden rounded-full bg-slate-900 shadow-xl">
-            {/* Black advantage */}
+            {/* Background gradient */}
             <div className="absolute inset-0 bg-linear-to-b from-black via-transparent to-white/20" />
 
-            {/* White advantage */}
+            {/* White advantage bar */}
             <div
-                className="absolute bottom-0 w-full bg-white transition-all duration-500"
+                className="absolute bottom-0 w-full bg-white transition-all duration-500 ease-in-out"
                 style={{ height: `${whiteHeight}%` }}
             />
 
@@ -63,3 +67,5 @@ export default function EvalBar() {
         </div>
     );
 }
+
+export default EvalBar;

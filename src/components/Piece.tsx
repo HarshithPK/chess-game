@@ -25,10 +25,9 @@ const ICONS = {
 interface PieceProps {
     piece: PieceType;
     index: number;
-    disabled?: boolean;
 }
 
-export default function Piece({ piece, index, disabled = false }: PieceProps) {
+function Piece({ piece, index }: PieceProps) {
     const ref = useRef<HTMLDivElement | null>(null);
     const dispatch = useAppDispatch();
 
@@ -38,7 +37,6 @@ export default function Piece({ piece, index, disabled = false }: PieceProps) {
 
     const Icon = ICONS[piece.type];
 
-    /** ✅ SINGLE SOURCE OF TRUTH */
     const isSpectator = myColor === null;
 
     const canInteract =
@@ -48,8 +46,7 @@ export default function Piece({ piece, index, disabled = false }: PieceProps) {
         promotion === null &&
         disconnectedColor === null &&
         piece.color === myColor &&
-        turn === myColor &&
-        !disabled;
+        turn === myColor;
 
     const isFlipped = myColor === 'black';
 
@@ -73,16 +70,10 @@ export default function Piece({ piece, index, disabled = false }: PieceProps) {
         });
     }, [canInteract, index, dispatch]);
 
-    if (!piece) return null;
-
     return (
         <div
             ref={ref}
-            className={`transition-transform duration-500 ${isFlipped ? 'rotate-180' : ''} ${
-                canInteract
-                    ? 'cursor-grab active:cursor-grabbing'
-                    : 'pointer-events-none opacity-40'
-            }`}
+            className={`transition-transform duration-300 ${isFlipped ? 'rotate-180' : ''} ${canInteract ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none opacity-40'} `}
         >
             <Icon
                 className={`h-10 w-10 ${
@@ -93,3 +84,5 @@ export default function Piece({ piece, index, disabled = false }: PieceProps) {
         </div>
     );
 }
+
+export default Piece;

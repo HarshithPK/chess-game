@@ -3,9 +3,9 @@ import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element
 
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { clearSelection, selectPiece } from '../features/chess/chessSlice';
+import { socket } from '../socket';
 
 import Piece from './Piece';
-import { socket } from '../socket';
 
 interface SquareProps {
     index: number;
@@ -98,7 +98,7 @@ function Square({ index }: SquareProps) {
         <div
             ref={ref}
             onClick={handleClick}
-            className={`flex aspect-square items-center justify-center transition-all duration-150 ${isDark ? 'bg-[#1f2a3a]' : 'bg-[#2c3b52]'} ${isOrigin ? 'shadow-[inset_0_0_0_2px_rgb(59,130,246)]' : ''} ${
+            className={`relative flex aspect-square items-center justify-center ${isDark ? 'bg-[#1f2a3a]' : 'bg-[#2c3b52]'} ${isOrigin ? 'shadow-[inset_0_0_0_2px_rgb(59,130,246)]' : ''} ${
                 legalMove
                     ? legalMove.capture
                         ? 'shadow-[inset_0_0_0_2px_rgba(239,68,68,0.9)]'
@@ -108,7 +108,7 @@ function Square({ index }: SquareProps) {
                 isKingInCheck ? 'bg-red-500/20 shadow-[inset_0_0_0_3px_rgba(239,68,68,0.9)]' : ''
             } ${isLocked ? 'cursor-default' : 'cursor-pointer hover:scale-[1.02]'} `}
         >
-            {piece && <Piece piece={piece} index={index} disabled={isLocked} />}
+            {piece && <Piece piece={piece} index={index} />}
         </div>
     );
 }

@@ -9,16 +9,12 @@ function Board() {
     const board = useAppSelector((s) => s.chess.board);
     const myColor = useAppSelector((s) => s.chess.myColor);
 
-    const isSpectator = myColor === null;
     const isFlipped = myColor === 'black';
-
     const files = isFlipped ? [...FILES].reverse() : FILES;
     const ranks = isFlipped ? RANKS : [...RANKS].reverse();
 
     return (
-        <div
-            className={`relative ${isSpectator ? '' : 'transition-transform hover:scale-[1.008]'}`}
-        >
+        <div className="relative">
             <GameOverBanner />
 
             <div

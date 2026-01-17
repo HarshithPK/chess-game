@@ -1,13 +1,13 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-import type { BoardState, GameEndReason, GameStatus } from '../../types/chess';
 import { initialBoard } from './initialBoard';
 import { getLegalMoves, isKingInCheck, hasAnyLegalMoves, type Move } from './moveUtils';
+import { toSAN } from '../../engine/toSan';
+
+import type { BoardState, GameEndReason, GameStatus } from '../../types/chess';
 import type { PlayerColor, ServerGame } from '../../types/serverGame';
 
-/* =====================================================
-   HELPERS
-===================================================== */
+/* =============== HELPERS =============== */
 
 const PLAYER_ID_KEY = 'chess_player_id';
 
@@ -15,12 +15,33 @@ function getPlayerId() {
     return localStorage.getItem(PLAYER_ID_KEY);
 }
 
+function withPieceIds(board: BoardState): BoardState {
+    return board.map((square) => {
+        if (!square.piece) return square;
+
+        return {
+            ...square,
+            piece: {
+                ...square.piece,
+                id: square.piece.id ?? crypto.randomUUID(),
+            },
+        };
+    });
+}
+
+function normalizeMove(to: number, move: Move, capture: boolean): Move {
+    return {
+        index: to,
+        capture,
+        castle: move.castle,
+        enPassant: move.enPassant,
+    };
+}
+
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const indexToSquare = (index: number) => `${files[index % 8]}${8 - Math.floor(index / 8)}`;
 
-/* =====================================================
-   TYPES
-===================================================== */
+/* =============== TYPES =============== */
 
 interface MovePayload {
     from: number;
@@ -290,30 +311,64 @@ const chessSlice = createSlice({
         /* ---------- SERVER SYNC ---------- */
 
         setGameFromServer: (state, action: PayloadAction<ServerGame>) => {
+            const prevBoard = state.board;
+
             state.gameId = action.payload.id;
-            state.board = action.payload.board;
+            state.board = withPieceIds(action.payload.board);
             state.turn = action.payload.turn;
             state.enPassantTarget = action.payload.enPassantTarget;
-
-            state.gameOver = action.payload.status === 'ended';
-            state.winner = action.payload.winner ?? null;
-            state.endReason = action.payload.endReason ?? null;
-
-            state.disconnectedDeadline = action.payload.disconnectedDeadline ?? null;
-            state.disconnectedColor = action.payload.disconnectedColor ?? null;
-
             state.gameStatus = action.payload.status;
 
+            if (prevBoard.length) {
+                let from: number | null = null;
+                let to: number | null = null;
+
+                for (let i = 0; i < 64; i++) {
+                    if (prevBoard[i].piece && !state.board[i].piece) from = i;
+                    if (!prevBoard[i].piece && state.board[i].piece) to = i;
+                }
+
+                if (from !== null && to !== null) {
+                    const movingPiece = prevBoard[from].piece!;
+                    const legalMoves = getLegalMoves(prevBoard, from, state.enPassantTarget);
+
+                    const move = legalMoves.find((m) => m.index === to);
+
+                    if (move) {
+                        const wasCapture =
+                            prevBoard[to].piece &&
+                            prevBoard[to]!.piece!.color !== state.board[to].piece?.color;
+
+                        const sanMove = normalizeMove(to, move!, wasCapture || move!.capture);
+
+                        const opponent = movingPiece.color === 'white' ? 'black' : 'white';
+                        const isCheck = isKingInCheck(state.board, opponent);
+                        const isMate = isCheck && !hasAnyLegalMoves(state.board, opponent);
+
+                        const san = toSAN({
+                            boardBefore: prevBoard,
+                            from,
+                            to,
+                            move: sanMove,
+                            isCheck,
+                            isMate,
+                        });
+
+                        state.moveHistory.push({
+                            notation: san,
+                            annotation: null,
+                        });
+                    }
+                }
+            }
+
             const myPlayerId = getPlayerId();
-
-            console.log('Player ID: ', myPlayerId);
-
             if (action.payload.players.white?.playerId === myPlayerId) {
                 state.myColor = 'white';
             } else if (action.payload.players.black?.playerId === myPlayerId) {
                 state.myColor = 'black';
             } else {
-                state.myColor = null; // spectator
+                state.myColor = null;
             }
 
             state.selectedIndex = null;

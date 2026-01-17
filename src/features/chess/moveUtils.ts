@@ -14,6 +14,7 @@ export type Move = {
     capture: boolean;
     castle?: 'king' | 'queen';
     enPassant?: number;
+    promotion?: 'queen' | 'rook' | 'bishop' | 'knight';
 };
 
 /* =====================================================
