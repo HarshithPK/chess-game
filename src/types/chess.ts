@@ -10,6 +10,7 @@ export type GameEndReason =
     | 'threefold'
     | 'fifty-move'
     | 'insufficient-material'
+    | 'timeout'
     | null;
 
 export type GameStatus = 'waiting' | 'active' | 'ended';
