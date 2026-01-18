@@ -2,7 +2,15 @@ export type PieceType = 'pawn' | 'rook' | 'knight' | 'bishop' | 'queen' | 'king'
 
 export type Color = 'white' | 'black';
 
-export type GameEndReason = 'checkmate' | 'resign' | 'disconnect' | null;
+export type GameEndReason =
+    | 'checkmate'
+    | 'resign'
+    | 'disconnect'
+    | 'stalemate'
+    | 'threefold'
+    | 'fifty-move'
+    | 'insufficient-material'
+    | null;
 
 export type GameStatus = 'waiting' | 'active' | 'ended';
 
